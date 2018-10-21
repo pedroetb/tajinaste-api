@@ -2,7 +2,7 @@ version: '3.7'
 
 services:
   postgrest:
-    image: postgrest/postgrest:latest
+    image: postgrest/postgrest:${IMAGE_TAG:-latest}
     environment:
       - PGRST_DB_URI=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       - PGRST_SERVER_PORT
@@ -10,14 +10,31 @@ services:
       - PGRST_DB_ANON_ROLE
       - PGRST_JWT_SECRET
     networks:
-      net:
+      tajinaste-net:
         aliases:
           - api
-    ports:
-      - target: ${PGRST_SERVER_PORT}
-        published: ${PUBLISHED_PORT}
-        mode: host
+      traefik-net:
+    deploy:
+      mode: replicated
+      replicas: 1
+      labels:
+        traefik.port: "${PGRST_SERVER_PORT}"
+        traefik.docker.network: traefik-net
+        traefik.frontend.rule: Host:tajinaste.${PUBLIC_HOSTNAME};PathPrefixStrip:/api
+        traefik.backend: postgrest
+      restart_policy:
+        delay: 10s
+        window: 1m
+      resources:
+        limits:
+          cpus: '2'
+          memory: 128M
+        reservations:
+          memory: 103M
 
 networks:
-  net:
+  tajinaste-net:
     name: tajinaste-net
+
+  traefik-net:
+    external: true
