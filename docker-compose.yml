@@ -1,40 +1,49 @@
 version: '3.7'
 
 services:
-  postgrest:
-    image: postgrest/postgrest:${IMAGE_TAG:-latest}
+  tajinaste-api:
+    image: ${IMAGE_NAME:-postgrest/postgrest}:${IMAGE_TAG:-latest}
     environment:
-      - PGRST_DB_URI=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
-      - PGRST_SERVER_PORT
-      - PGRST_DB_SCHEMA
-      - PGRST_DB_ANON_ROLE
-      - PGRST_JWT_SECRET
+      PGRST_DB_URI: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      PGRST_SERVER_PORT:
+      PGRST_DB_SCHEMA:
+      PGRST_DB_ANON_ROLE:
+      PGRST_JWT_SECRET:
     networks:
       tajinaste-net:
         aliases:
-          - api
+          - ${TAJINASTE_NET_ALIAS:-api}
       traefik-net:
     deploy:
       mode: replicated
-      replicas: 1
-      labels:
-        traefik.port: "${PGRST_SERVER_PORT}"
-        traefik.docker.network: traefik-net
-        traefik.frontend.rule: Host:tajinaste.${PUBLIC_HOSTNAME};PathPrefixStrip:/api
-        traefik.backend: postgrest
+      replicas: ${REPLICAS:-1}
       restart_policy:
-        delay: 10s
-        window: 1m
+        delay: ${RESTART_DELAY:-10s}
+      update_config:
+        delay: ${UPDATE_DELAY:-1m}
+      labels:
+        traefik.enable: 'true'
+        traefik.http.routers.tajinaste-api.entrypoints: ${TRAEFIK_ENTRYPOINT:-https}
+        traefik.http.routers.tajinaste-api.tls.certresolver: ${TRAEFIK_CERTRESOLVER:-default}
+        traefik.http.routers.tajinaste-api.rule: Host(`${TRAEFIK_SUBDOMAIN}.${TRAEFIK_DOMAIN}`) && PathPrefix(`${TRAEFIK_PATHPREFIX}`)
+        traefik.http.middlewares.tajinaste-api-prefix.stripprefix.prefixes: ${TRAEFIK_PATHPREFIX}
+        traefik.http.routers.tajinaste-api.middlewares: tajinaste-api-prefix
+        traefik.http.services.tajinaste-api.loadbalancer.server.port: ${PGRST_SERVER_PORT}
       resources:
         limits:
-          cpus: '2'
-          memory: 128M
+          cpus: '${RESOURCES_LIMITS_CPUS:-1}'
+          memory: ${RESOURCES_LIMITS_MEMORY:-64M}
         reservations:
-          memory: 103M
+          cpus: '${RESOURCES_RESERVATIONS_CPUS:-0.001}'
+          memory: ${RESOURCES_RESERVATIONS_MEMORY:-8M}
 
 networks:
   tajinaste-net:
-    name: tajinaste-net
+    name: ${TAJINASTE_NET_NAME:-tajinaste-net}
+    driver: ${TAJINASTE_NET_DRIVER:-overlay}
+    attachable: ${TAJINASTE_NET_ATTACHABLE:-true}
 
   traefik-net:
+    name: ${TRAEFIK_NET_NAME:-traefik-net}
+    driver: ${TRAEFIK_NET_DRIVER:-overlay}
     external: true
