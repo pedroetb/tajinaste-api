@@ -1,13 +1,13 @@
-version: '3.7'
+version: '3.9'
 
 services:
   tajinaste-api:
     image: ${IMAGE_NAME:-postgrest/postgrest}:${IMAGE_TAG:-latest}
     environment:
-      PGRST_DB_URI: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
-      PGRST_SERVER_PORT:
-      PGRST_DB_SCHEMA:
+      PGRST_DB_URI: ${POSTGRES_PROTOCOL}://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}${POSTGRES_PARAMS}
+      PGRST_DB_SCHEMAS:
       PGRST_DB_ANON_ROLE:
+      PGRST_SERVER_PORT:
       PGRST_JWT_SECRET:
     networks:
       tajinaste-net:
@@ -24,10 +24,9 @@ services:
       labels:
         traefik.enable: 'true'
         traefik.http.routers.tajinaste-api.entrypoints: ${TRAEFIK_ENTRYPOINT:-https}
-        traefik.http.routers.tajinaste-api.tls.certresolver: ${TRAEFIK_CERTRESOLVER:-default}
         traefik.http.routers.tajinaste-api.rule: Host(`${TRAEFIK_SUBDOMAIN}.${TRAEFIK_DOMAIN}`) && PathPrefix(`${TRAEFIK_PATHPREFIX}`)
-        traefik.http.middlewares.tajinaste-api-prefix.stripprefix.prefixes: ${TRAEFIK_PATHPREFIX}
-        traefik.http.routers.tajinaste-api.middlewares: tajinaste-api-prefix
+        traefik.http.middlewares.tajinaste-api-strip-prefix.stripprefix.prefixes: ${TRAEFIK_PATHPREFIX}
+        traefik.http.routers.tajinaste-api.middlewares: tajinaste-api-strip-prefix
         traefik.http.services.tajinaste-api.loadbalancer.server.port: ${PGRST_SERVER_PORT}
       resources:
         limits:
@@ -35,7 +34,7 @@ services:
           memory: ${RESOURCES_LIMITS_MEMORY:-64M}
         reservations:
           cpus: '${RESOURCES_RESERVATIONS_CPUS:-0.001}'
-          memory: ${RESOURCES_RESERVATIONS_MEMORY:-8M}
+          memory: ${RESOURCES_RESERVATIONS_MEMORY:-16M}
 
 networks:
   tajinaste-net:
